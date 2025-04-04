@@ -74,11 +74,26 @@ export default function Home() {
 
 
     // Use the newly generated ticket number
-    fetch("https://script.google.com/macros/s/AKfycbxVos26wuxc0ls5wSmidpin2cHgtQqFvQ8J-rURrODw9U5WRAsWfk6Xc7O0ivN0Y7mA/exec", {
+    // fetch("https://script.google.com/macros/s/AKfycbxVos26wuxc0ls5wSmidpin2cHgtQqFvQ8J-rURrODw9U5WRAsWfk6Xc7O0ivN0Y7mA/exec", {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify({
+    //     ticketId: newTicketNumber,  // Use newTicketNumber instead of ticketNumber
+    //     name: data.name,
+    //     email: data.email,
+    //     phone: data.phone,
+    //     price: data.price,
+    //     timeSlot: data.timeSlot
+    //   }),
+    // })
+    //   .then(response => response.text())
+    //   .then(result => console.log("Google Sheet Response:", result))
+    //   .catch(error => console.error("Fetch Error:", error));
+    fetch("/api/submit-ticket", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ticketId: newTicketNumber,  // Use newTicketNumber instead of ticketNumber
+        ticketId: newTicketNumber,
         name: data.name,
         email: data.email,
         phone: data.phone,
@@ -86,9 +101,10 @@ export default function Home() {
         timeSlot: data.timeSlot
       }),
     })
-      .then(response => response.text())
-      .then(result => console.log("Google Sheet Response:", result))
+      .then(response => response.json())
+      .then(result => console.log("Submission result:", result))
       .catch(error => console.error("Fetch Error:", error));
+
 
 
     // Mark the time slot as booked
