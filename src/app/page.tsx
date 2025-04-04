@@ -8,17 +8,51 @@ interface FormData {
   email: string;
   phone: string;
   price: number;
+  timeSlot: string;
 }
 
 export default function Home() {
   const [ticketNumber, setTicketNumber] = useState<string>("");
   const [lastTicketNumber, setLastTicketNumber] = useState<number>(0);
+  const [availableSlots, setAvailableSlots] = useState<{id: string, time: string, available: boolean}[]>([]);
   const { register, handleSubmit, reset, watch } = useForm<FormData>();
   
-  // Watch the name field to use in preview
   const userName = watch("name", "");
+  const selectedTimeSlot = watch("timeSlot", "");
 
-  // Load the last ticket number from localStorage on component mount
+  // Generate time slots for the current day (10-minute intervals from 10 AM to 8 PM)
+  useEffect(() => {
+    const generateTimeSlots = () => {
+      const slots = [];
+      const today = new Date();
+      const startHour = 10; // 10 AM
+      const endHour = 20; // 8 PM
+      
+      // Get stored bookings
+      const bookedSlots = JSON.parse(localStorage.getItem("bookedTimeSlots") || "[]");
+      
+      for (let hour = startHour; hour < endHour; hour++) {
+        for (let minute = 0; minute < 60; minute += 10) {
+          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+          const slotId = `${today.toDateString()}-${timeString}`;
+          
+          // Check if this slot is already booked
+          const isBooked = bookedSlots.includes(slotId);
+          
+          slots.push({
+            id: slotId,
+            time: timeString,
+            available: !isBooked
+          });
+        }
+      }
+      
+      setAvailableSlots(slots);
+    };
+    
+    generateTimeSlots();
+  }, []);
+
   useEffect(() => {
     const storedLastTicket = localStorage.getItem("lastTicketNumber");
     if (storedLastTicket) {
@@ -27,14 +61,9 @@ export default function Home() {
   }, []);
 
   const generateTicketNumber = () => {
-    // Increment the last ticket number
     const newTicketNum = lastTicketNumber + 1;
-    
-    // Save the new ticket number to localStorage
     localStorage.setItem("lastTicketNumber", newTicketNum.toString());
     setLastTicketNumber(newTicketNum);
-    
-    // Format with leading zeros to ensure 3 digits
     return `#${newTicketNum.toString().padStart(3, '0')}`;
   };
 
@@ -42,7 +71,46 @@ export default function Home() {
     const newTicketNumber = generateTicketNumber();
     setTicketNumber(newTicketNumber);
     
-    // Format WhatsApp message with improved formatting and personalization
+    const payload = {
+      ticketId: newTicketNumber,
+      ...data,
+    };
+    
+    fetch("https://script.google.com/macros/s/AKfycbwlPjV-vOhuDmAuhs4AGrPy36QlWyGJ9Og5MfgE8-uklJfdzhRLGT847F9PwUN50LaV/exec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ticketId: ticketNumber,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        price: data.price,
+        timeSlot: data.timeSlot
+      }),
+    })
+      .then(response => response.text())
+      .then(result => console.log("Google Sheet Response:", result))
+      .catch(error => console.error("Fetch Error:", error));
+    
+
+    // Mark the time slot as booked
+    if (data.timeSlot) {
+      const bookedSlots = JSON.parse(localStorage.getItem("bookedTimeSlots") || "[]");
+      bookedSlots.push(data.timeSlot);
+      localStorage.setItem("bookedTimeSlots", JSON.stringify(bookedSlots));
+      
+      // Update available slots in the UI
+      setAvailableSlots(currentSlots => 
+        currentSlots.map(slot => 
+          slot.id === data.timeSlot ? {...slot, available: false} : slot
+        )
+      );
+    }
+    
+    // Get the time for the selected slot
+    const selectedSlot = availableSlots.find(slot => slot.id === data.timeSlot);
+    const timeSlotText = selectedSlot ? selectedSlot.time : "Not specified";
+    
     const message = `
 *✨ WELCOME TO ETIHASAM ✨*
 
@@ -53,6 +121,7 @@ Thank you for booking the show with us! 🎭
 *Booking Details:*
 ------------------------
 🎫 Ticket ID: ${newTicketNumber}
+⏰ Time Slot: ${timeSlotText} (10 minute show)
 💰 Paid Amount: ₹${data.price}
 ------------------------
 
@@ -62,18 +131,13 @@ To know more about us:
 Have a wonderful day! 🎉
     `.trim();
 
-    // Add +91 prefix to the phone number if it doesn't already have it
     let formattedPhone = data.phone.replace(/\D/g, '');
     if (!formattedPhone.startsWith('91')) {
       formattedPhone = '91' + formattedPhone;
     }
     
-    // Create WhatsApp link
     const whatsappLink = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
-    
-    // Open in a new tab
     window.open(whatsappLink, "_blank");
-    
     reset();
   };
 
@@ -119,6 +183,36 @@ Have a wonderful day! 🎉
           </div>
 
           <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-800">Select Time Slot (10 minutes)</label>
+            <select
+              {...register("timeSlot", { required: true })}
+              className="w-full p-3 border border-gray-200 rounded-md focus:ring-1 focus:ring-black focus:border-black bg-white transition-all"
+            >
+              <option value="">Select a time slot</option>
+              {availableSlots
+                .filter(slot => slot.available)
+                .map(slot => (
+                  <option key={slot.id} value={slot.id}>
+                    {slot.time} - {
+                      // Calculate end time (10 minutes later)
+                      (() => {
+                        const [hours, minutes] = slot.time.split(':').map(Number);
+                        const endMinutes = minutes + 10;
+                        const endHours = hours + Math.floor(endMinutes / 60);
+                        const formattedEndMinutes = (endMinutes % 60).toString().padStart(2, '0');
+                        const formattedEndHours = endHours.toString().padStart(2, '0');
+                        return `${formattedEndHours}:${formattedEndMinutes}`;
+                      })()
+                    }
+                  </option>
+                ))}
+            </select>
+            {availableSlots.filter(slot => slot.available).length === 0 && (
+              <p className="text-xs text-red-500">All slots for today are booked</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <label className="text-sm font-medium text-gray-800">Paid Amount</label>
             <input
               {...register("price", { required: true, min: 0 })}
@@ -131,6 +225,7 @@ Have a wonderful day! 🎉
           <button
             type="submit"
             className="w-full bg-black text-white font-medium py-3 px-4 rounded-md transition duration-200 hover:bg-gray-800"
+            disabled={availableSlots.filter(slot => slot.available).length === 0}
           >
             Generate Ticket & Send WhatsApp
           </button>
@@ -143,9 +238,14 @@ Have a wonderful day! 🎉
               <p className="text-gray-800 font-medium mb-2">
                 Ticket Generated: {ticketNumber}
               </p>
-              <p className="text-gray-700">
+              <p className="text-gray-700 mb-1">
                 For: {userName || "Customer"}
               </p>
+              {selectedTimeSlot && (
+                <p className="text-gray-700">
+                  Time Slot: {availableSlots.find(slot => slot.id === selectedTimeSlot)?.time || "Not specified"} (10 minute show)
+                </p>
+              )}
             </div>
           </div>
         )}
