@@ -36,7 +36,8 @@ export async function POST(req: Request) {
 
     const data = await response.text();
     return NextResponse.json({ message: "Success", data });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Failed to submit data" }, { status: 500 });
   }
 }
+
