@@ -14,9 +14,9 @@ interface FormData {
 export default function Home() {
   const [ticketNumber, setTicketNumber] = useState<string>("");
   const [lastTicketNumber, setLastTicketNumber] = useState<number>(0);
-  const [availableSlots, setAvailableSlots] = useState<{id: string, time: string, available: boolean}[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<{ id: string, time: string, available: boolean }[]>([]);
   const { register, handleSubmit, reset, watch } = useForm<FormData>();
-  
+
   const userName = watch("name", "");
   const selectedTimeSlot = watch("timeSlot", "");
 
@@ -27,18 +27,18 @@ export default function Home() {
       const today = new Date();
       const startHour = 10; // 10 AM
       const endHour = 20; // 8 PM
-      
+
       // Get stored bookings
       const bookedSlots = JSON.parse(localStorage.getItem("bookedTimeSlots") || "[]");
-      
+
       for (let hour = startHour; hour < endHour; hour++) {
         for (let minute = 0; minute < 60; minute += 10) {
           const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
           const slotId = `${today.toDateString()}-${timeString}`;
-          
+
           // Check if this slot is already booked
           const isBooked = bookedSlots.includes(slotId);
-          
+
           slots.push({
             id: slotId,
             time: timeString,
@@ -46,10 +46,10 @@ export default function Home() {
           });
         }
       }
-      
+
       setAvailableSlots(slots);
     };
-    
+
     generateTimeSlots();
   }, []);
 
@@ -70,17 +70,15 @@ export default function Home() {
   const onSubmit = (data: FormData) => {
     const newTicketNumber = generateTicketNumber();
     setTicketNumber(newTicketNumber);
-    
-    const payload = {
-      ticketId: newTicketNumber,
-      ...data,
-    };
-    
+
+
+
+    // Use the newly generated ticket number
     fetch("https://script.google.com/macros/s/AKfycbwlPjV-vOhuDmAuhs4AGrPy36QlWyGJ9Og5MfgE8-uklJfdzhRLGT847F9PwUN50LaV/exec", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ticketId: ticketNumber,
+        ticketId: newTicketNumber,  // Use newTicketNumber instead of ticketNumber
         name: data.name,
         email: data.email,
         phone: data.phone,
@@ -91,26 +89,26 @@ export default function Home() {
       .then(response => response.text())
       .then(result => console.log("Google Sheet Response:", result))
       .catch(error => console.error("Fetch Error:", error));
-    
+
 
     // Mark the time slot as booked
     if (data.timeSlot) {
       const bookedSlots = JSON.parse(localStorage.getItem("bookedTimeSlots") || "[]");
       bookedSlots.push(data.timeSlot);
       localStorage.setItem("bookedTimeSlots", JSON.stringify(bookedSlots));
-      
+
       // Update available slots in the UI
-      setAvailableSlots(currentSlots => 
-        currentSlots.map(slot => 
-          slot.id === data.timeSlot ? {...slot, available: false} : slot
+      setAvailableSlots(currentSlots =>
+        currentSlots.map(slot =>
+          slot.id === data.timeSlot ? { ...slot, available: false } : slot
         )
       );
     }
-    
+
     // Get the time for the selected slot
     const selectedSlot = availableSlots.find(slot => slot.id === data.timeSlot);
     const timeSlotText = selectedSlot ? selectedSlot.time : "Not specified";
-    
+
     const message = `
 *✨ WELCOME TO ETIHASAM ✨*
 
@@ -135,7 +133,7 @@ Have a wonderful day! 🎉
     if (!formattedPhone.startsWith('91')) {
       formattedPhone = '91' + formattedPhone;
     }
-    
+
     const whatsappLink = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
     window.open(whatsappLink, "_blank");
     reset();
@@ -150,7 +148,7 @@ Have a wonderful day! 🎉
           </h1>
           <p className="text-gray-600 mt-2">Fill in the details below</p>
         </div>
-        
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-800">Name</label>
@@ -249,7 +247,7 @@ Have a wonderful day! 🎉
             </div>
           </div>
         )}
-        
+
         <div className="mt-4 text-xs text-gray-500 text-center">
           Next ticket will be #{(lastTicketNumber + 1).toString().padStart(3, '0')}
         </div>
