@@ -74,7 +74,7 @@ export default function Home() {
 
 
     // Use the newly generated ticket number
-    fetch("https://script.google.com/macros/s/AKfycbw9FSlFPDFPspwsPIinCmmaOHNr0WsOzZiKDx6ntQ9a6f6FFX7AKoA1PIKAkU3IJ1fz/exec", {
+    fetch("https://script.google.com/macros/s/AKfycbxVos26wuxc0ls5wSmidpin2cHgtQqFvQ8J-rURrODw9U5WRAsWfk6Xc7O0ivN0Y7mA/exec", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
